@@ -101,13 +101,6 @@ The website uses a mailto-based approach for form submissions:
 - Touch-friendly buttons
 - Optimized font sizes
 
-## 📞 Client Contact Information
-
-- **Phone**: +91 8006908513
-- **WhatsApp**: [Chat on WhatsApp](https://wa.me/918006908513)
-- **Email**: Sachinnagar112@gmail.com
-- **Address**: Near Galgotias University, Dankaur, Gautam Buddha Nagar, UP 201301
-
 ## 📄 License
 
 This project is created for Arya Boys PG. Feel free to use this template for similar accommodation websites with proper attribution.

@@ -13,8 +13,8 @@ Currently supported versions for security updates:
 We take the security of Arya Boys PG very seriously. If you discover a security vulnerability, please report it immediately.
 
 You can report vulnerabilities directly by contacting us:
-- **Email:** Sachinngr300@gmail.com
-- **Phone & WhatsApp:** +91 8006908513
+- **Email:** Danendra8595@gmail.com
+- **Phone & WhatsApp:** +91 9643771102
 
 Please include as much detail as possible, including steps to reproduce, so we can address the issue promptly. We will acknowledge your report within 48 hours and provide weekly updates until the issue is resolved.
 
