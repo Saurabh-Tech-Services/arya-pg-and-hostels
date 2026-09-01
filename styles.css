@@ -1543,6 +1543,16 @@ body {
     font-size: 0.9rem;
 }
 
+.domain-modal__payment-note--blocked {
+    color: #b91c1c;
+    font-weight: 700;
+}
+
+.domain-modal__close.is-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .domain-modal__pay-btn {
     display: inline-flex;
     align-items: center;

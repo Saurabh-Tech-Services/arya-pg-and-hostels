@@ -337,75 +337,266 @@ function highlightNavOnScroll() {
 }
 
 // Domain renewal modal and countdown
-const domainRenewalModal = document.getElementById('domainRenewalModal');
-const domainCountdownTargets = {
-    days: document.getElementById('domainDays'),
-    hours: document.getElementById('domainHours'),
-    minutes: document.getElementById('domainMinutes'),
-    seconds: document.getElementById('domainSeconds')
-};
-const domainDeadline = new Date('2026-06-20T23:59:00+05:30').getTime();
+const DOMAIN_RENEWAL_API_URL = 'https://vjkjvombhckuawwmdbis.supabase.co/functions/v1/domain-status';
 
 function padCountdownValue(value) {
     return String(value).padStart(2, '0');
 }
 
-function updateDomainCountdown() {
-    if (!domainCountdownTargets.days) {
-        return;
-    }
-
-    const remaining = Math.max(domainDeadline - Date.now(), 0);
-    const secondsTotal = Math.floor(remaining / 1000);
-    const days = Math.floor(secondsTotal / 86400);
-    const hours = Math.floor((secondsTotal % 86400) / 3600);
-    const minutes = Math.floor((secondsTotal % 3600) / 60);
-    const seconds = secondsTotal % 60;
-
-    domainCountdownTargets.days.textContent = padCountdownValue(days);
-    domainCountdownTargets.hours.textContent = padCountdownValue(hours);
-    domainCountdownTargets.minutes.textContent = padCountdownValue(minutes);
-    domainCountdownTargets.seconds.textContent = padCountdownValue(seconds);
+function formatCurrencyINR(value) {
+    const amount = Number(value || 0);
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0
+    }).format(amount);
 }
 
-function openDomainRenewalModal() {
-    if (!domainRenewalModal) {
-        return;
+function formatDateLabel(value) {
+    if (!value) return 'N/A';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+    }).format(parsed);
+}
+
+function createDomainRenewalModal() {
+    if (document.getElementById('domainRenewalModal')) {
+        return document.getElementById('domainRenewalModal');
     }
 
-    domainRenewalModal.classList.add('is-visible');
-    domainRenewalModal.setAttribute('aria-hidden', 'false');
+    const modal = document.createElement('div');
+    modal.id = 'domainRenewalModal';
+    modal.className = 'domain-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-hidden', 'true');
+
+    modal.innerHTML = `
+        <div class="domain-modal__backdrop" data-domain-modal-close></div>
+        <div class="domain-modal__dialog" role="document">
+            <button type="button" class="domain-modal__close" aria-label="Close renewal notice" data-domain-modal-close>&times;</button>
+            <div class="domain-modal__header">
+                <div class="domain-modal__icon" aria-hidden="true">
+                    <i class="fas fa-globe"></i>
+                </div>
+                <div>
+                    <p class="domain-modal__eyebrow">Domain Renewal Notice</p>
+                    <h2 id="domainRenewalTitle">Domain</h2>
+                </div>
+            </div>
+            <div class="domain-modal__grid">
+                <div class="domain-modal__item">
+                    <span><i class="fas fa-globe" aria-hidden="true"></i> Domain</span>
+                    <strong id="domainRenewalDomain">website.com</strong>
+                </div>
+                <div class="domain-modal__item">
+                    <span><i class="fas fa-tag" aria-hidden="true"></i> Renewal Price</span>
+                    <strong id="domainRenewalPrice">₹0</strong>
+                </div>
+                <div class="domain-modal__item">
+                    <span><i class="fas fa-calendar-days" aria-hidden="true"></i> Payment Last Date</span>
+                    <strong id="domainPaymentDeadline">N/A</strong>
+                </div>
+                <div class="domain-modal__item">
+                    <span><i class="fas fa-clock" aria-hidden="true"></i> Expiration Date</span>
+                    <strong id="domainExpirationDate">N/A</strong>
+                </div>
+                <div class="domain-modal__item">
+                    <span><i class="fas fa-registered" aria-hidden="true"></i> Registered Date</span>
+                    <strong id="domainRegisteredDate">N/A</strong>
+                </div>
+                <div class="domain-modal__item">
+                    <span><i class="fas fa-rotate" aria-hidden="true"></i> Status</span>
+                    <strong class="domain-modal__renew-text">Renew Required</strong>
+                </div>
+            </div>
+            <div class="domain-modal__payment-note" id="domainModalMessage">Please make a payment to renew the domain and keep the website online.</div>
+            <a class="domain-modal__pay-btn" id="domainPayButton" href="#" target="_blank" rel="noopener noreferrer">Pay Now</a>
+            <p class="domain-modal__deadline" id="domainDeadlineLabel">Payment Last Date: N/A</p>
+            <div class="domain-modal__countdown-wrap">
+                <p class="domain-modal__countdown-title">Remaining Time</p>
+                <div class="domain-modal__countdown" aria-live="polite">
+                    <div class="domain-modal__time-block">
+                        <strong id="domainDays">00</strong>
+                        <span>Days</span>
+                    </div>
+                    <div class="domain-modal__separator">:</div>
+                    <div class="domain-modal__time-block">
+                        <strong id="domainHours">00</strong>
+                        <span>Hours</span>
+                    </div>
+                    <div class="domain-modal__separator">:</div>
+                    <div class="domain-modal__time-block">
+                        <strong id="domainMinutes">00</strong>
+                        <span>Minutes</span>
+                    </div>
+                    <div class="domain-modal__separator">:</div>
+                    <div class="domain-modal__time-block">
+                        <strong id="domainSeconds">00</strong>
+                        <span>Seconds</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    return modal;
+}
+
+function openDomainRenewalModal(modal) {
+    if (!modal) return;
+    modal.classList.add('is-visible');
+    modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('domain-modal-open');
 }
 
-function closeDomainRenewalModal() {
-    if (!domainRenewalModal) {
-        return;
-    }
-
-    domainRenewalModal.classList.remove('is-visible');
-    domainRenewalModal.setAttribute('aria-hidden', 'true');
+function closeDomainRenewalModal(modal) {
+    if (!modal) return;
+    modal.classList.remove('is-visible');
+    modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('domain-modal-open');
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    if (!domainRenewalModal) {
+function updateDomainCountdown(modal, deadlineTimestamp) {
+    const daysEl = modal?.querySelector('#domainDays');
+    const hoursEl = modal?.querySelector('#domainHours');
+    const minutesEl = modal?.querySelector('#domainMinutes');
+    const secondsEl = modal?.querySelector('#domainSeconds');
+
+    if (!daysEl || !hoursEl || !minutesEl || !secondsEl) {
         return;
     }
 
-    updateDomainCountdown();
-    setInterval(updateDomainCountdown, 1000);
-    openDomainRenewalModal();
+    const remaining = Math.max(deadlineTimestamp - Date.now(), 0);
+    const totalSeconds = Math.floor(remaining / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
 
-    domainRenewalModal.querySelectorAll('[data-domain-modal-close]').forEach(control => {
-        control.addEventListener('click', closeDomainRenewalModal);
-    });
+    daysEl.textContent = padCountdownValue(days);
+    hoursEl.textContent = padCountdownValue(hours);
+    minutesEl.textContent = padCountdownValue(minutes);
+    secondsEl.textContent = padCountdownValue(seconds);
+}
 
-    document.addEventListener('keydown', event => {
-        if (event.key === 'Escape') {
-            closeDomainRenewalModal();
+function populateDomainModal(modal, data) {
+    if (!modal || !data) return;
+
+    const domain = (data.domain || window.location.hostname || 'website.com').toLowerCase();
+    const renewPrice = formatCurrencyINR(data.renewal_price ?? 0);
+    const paymentDeadline = data.payment_deadline || data.paymentLastDate || '';
+    const expirationDate = data.expiration_date || data.expirationDate || '';
+    const registeredDate = data.registered_date || data.registeredDate || '';
+    const customMessage = data.custom_message || 'Please make a payment to renew the domain and keep the website online.';
+
+    const title = modal.querySelector('#domainRenewalTitle');
+    const domainName = modal.querySelector('#domainRenewalDomain');
+    const price = modal.querySelector('#domainRenewalPrice');
+    const deadline = modal.querySelector('#domainPaymentDeadline');
+    const expiration = modal.querySelector('#domainExpirationDate');
+    const registered = modal.querySelector('#domainRegisteredDate');
+    const message = modal.querySelector('#domainModalMessage');
+    const deadlineLabel = modal.querySelector('#domainDeadlineLabel');
+    const payButton = modal.querySelector('#domainPayButton');
+
+    if (title) title.textContent = domain;
+    if (domainName) domainName.textContent = domain;
+    if (price) price.textContent = renewPrice;
+    if (deadline) deadline.textContent = formatDateLabel(paymentDeadline);
+    if (expiration) expiration.textContent = formatDateLabel(expirationDate);
+    if (registered) registered.textContent = formatDateLabel(registeredDate);
+    if (message) message.textContent = customMessage;
+    if (deadlineLabel) deadlineLabel.textContent = `Payment Last Date: ${formatDateLabel(paymentDeadline)}`;
+    if (payButton) {
+        payButton.href = data.payment_link || '#';
+        payButton.textContent = 'Pay Now';
+    }
+
+    const closeButton = modal.querySelector('.domain-modal__close');
+    const allowClose = data.modal_allow_close === true;
+
+    if (!allowClose) {
+        closeButton?.setAttribute('title', 'Payment required');
+        closeButton?.classList.add('is-disabled');
+        if (message) {
+            message.textContent = customMessage || 'Please make a payment or contact Site Administration.';
         }
+    } else {
+        closeButton?.classList.remove('is-disabled');
+    }
+
+    const paymentDeadlineValue = paymentDeadline ? new Date(paymentDeadline).getTime() : Date.now() + 86400000;
+    updateDomainCountdown(modal, paymentDeadlineValue);
+    setInterval(() => updateDomainCountdown(modal, paymentDeadlineValue), 1000);
+}
+
+function bindDomainModalEvents(modal, modalSettings) {
+    if (!modal) return;
+
+    const closeControls = modal.querySelectorAll('[data-domain-modal-close]');
+    const message = modal.querySelector('#domainModalMessage');
+
+    closeControls.forEach(control => {
+        control.addEventListener('click', () => {
+            if (modalSettings.modal_allow_close === false) {
+                if (message) {
+                    message.textContent = 'Please make a payment or contact Site Administration.';
+                    message.classList.add('domain-modal__payment-note--blocked');
+                }
+                return;
+            }
+            closeDomainRenewalModal(modal);
+        });
     });
+
+    document.addEventListener('keydown', function handleDomainModalKeydown(event) {
+        if (event.key !== 'Escape') return;
+        if (!modal.classList.contains('is-visible')) return;
+        if (modalSettings.modal_allow_close === false) {
+            if (message) {
+                message.textContent = 'Please make a payment or contact Site Administration.';
+                message.classList.add('domain-modal__payment-note--blocked');
+            }
+            return;
+        }
+        closeDomainRenewalModal(modal);
+    }, { once: false });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const domainModal = createDomainRenewalModal();
+    if (!domainModal) return;
+
+    fetch(DOMAIN_RENEWAL_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: window.location.hostname })
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Domain status fetch failed');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data || data.modal_enabled !== true) {
+                domainModal.remove();
+                return;
+            }
+
+            populateDomainModal(domainModal, data);
+            bindDomainModalEvents(domainModal, data);
+            openDomainRenewalModal(domainModal);
+        })
+        .catch(() => {
+            domainModal.remove();
+        });
 });
 
 // Add scroll event listener for highlighting active nav link
