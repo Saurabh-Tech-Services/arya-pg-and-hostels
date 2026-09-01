@@ -381,7 +381,7 @@ function createDomainRenewalModal() {
             <button type="button" class="domain-modal__close" aria-label="Close renewal notice" data-domain-modal-close>&times;</button>
             <div class="domain-modal__header">
                 <div class="domain-modal__icon" aria-hidden="true">
-                    <i class="fas fa-globe"></i>
+                    <img src="./images/logo2.png" alt="Arya Boys PG Logo" />
                 </div>
                 <div>
                     <p class="domain-modal__eyebrow">Domain Renewal Notice</p>
